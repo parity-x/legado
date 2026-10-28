@@ -44,11 +44,16 @@ internal class PercentCodecCore(private val safe: BooleanArray) {
             val c = str[i]
             if (c == '%') {
                 if (i + 2 < str.length && isHexDigit(str[i + 1]) && isHexDigit(str[i + 2])) {
+                    // 整段 `%XX` 原样搬走后必须跳过三位: 只前进 1 位会让后两位十六进制字符
+                    // 在下一轮被当成普通字符再追加一次 (`%20` → `%2020`, `%E7` → `%E7E7`),
+                    // 编码过的 query/路径会被写成乱码字节 (搜索关键词、带转义的图片地址全中招)
                     out.append(str, i, i + 3)
+                    i += 3
                 } else {
+                    // 不成套的 `%`: 只有这一位是百分号本身, 按 `%25` 写掉后前进 1 位
                     out.append("%25")
+                    i++
                 }
-                i++
                 continue
             }
             if (c.code < SIZE && safe[c.code]) {
